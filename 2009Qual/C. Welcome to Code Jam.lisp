@@ -77,4 +77,61 @@
 
 (test)
 
-  
+(defun run-on-stream (&optional &key (in-stream *standard-input*)
+		      (out-stream *standard-output*))
+  (loop repeat (read in-stream)
+     for case from 1
+     do (format out-stream "Case #~a: ~a~%"
+		case
+		(format-4-last-digits
+		 (cps-on-next-string in-stream)))))
+
+(defun format-4-last-digits (num)
+  (with-output-to-string (s)
+    (format s "~a~a~a~a"
+	    (mod (floor (/ num 1000)) 10)
+	    (mod (floor (/ num 100))  10)
+	    (mod (floor (/ num 10))   10)
+	    (mod num 10))
+    s))
+
+(defmacro string-list (str)
+  "String to list macro."
+  `(list ,@(with-input-from-string
+	   (s str)
+	   (loop for char = (read-char s nil nil)
+	      while char
+	      collect char))))
+
+(defun cps-on-next-string (in-stream)
+  (count-phrase-subsequencies
+   (string-list "welcome to code jam")
+   (loop for char = (read-char in-stream nil nil)
+      while char
+      until (char= char #\NewLine)
+      collect char)))
+
+(defun test-streamed ()
+  (format t ";; Testing RUN-ON-STREAM: ~a~%"
+	  (string= "Case #1: 0001
+Case #2: 0256
+Case #3: 0000
+"
+		   (with-output-to-string (out-stream)
+		     (with-input-from-string (in-stream "3
+elcomew elcome to code jam
+wweellccoommee to code qps jam
+welcome to codejam
+")
+		       (run-on-stream :in-stream in-stream
+				      :out-stream out-stream))))))
+
+(test-streamed)
+
+;; Interactive program function
+(defun run (in-file out-file)
+  "Run it from the shell with
+   ``alisp -L <fasl> -e '(run #p\"~/in.txt\" #p\"~/out.txt\")' -kill''"
+  (with-open-file (in in-file)
+    (with-open-file (out out-file :direction :output :if-exists :supersede)
+      (run-on-stream :in-stream in :out-stream out))))
