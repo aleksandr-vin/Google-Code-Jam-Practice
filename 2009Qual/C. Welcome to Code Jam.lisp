@@ -27,7 +27,7 @@
        (decf *cps-depth*)
        result)))
 
-(defun cps (phrase phrase-len text text-len)
+(defun cps! (phrase phrase-len text text-len)
   "Returns a count of the phrase subsequencies found in the text.
    Should be called from COUNT-PHRASE-SUBSEQUENCIES."
   (if (> phrase-len text-len)
@@ -46,6 +46,27 @@
 		       (when *trace-cps* (format t "^^^^^^^~%"))
 		       1)))
 	       0)))))
+
+(defun cps-cmp (fp rp rp-len text rt-len)
+  (if (char= fp (first text))
+      (if rp
+	  (cps-macro rp rp-len (rest text) rt-len)
+	  (progn
+	    (when *trace-cps* (format t "^^^^^^^~%"))
+	    1))
+      0))
+
+(defun cps (phrase phrase-len text text-len)
+  "Alternative solution with MAPLIST."
+  (if (> phrase-len text-len)
+      0
+      (let ((fp (first phrase))
+	    (rp (rest phrase))
+	    (rp-len (1- phrase-len)))
+	(reduce #'+
+		(maplist #'(lambda (text)
+			     (cps-cmp fp rp rp-len text (decf text-len)))
+			 text)))))
 
 (defun trace-cps (&optional (trig t trigp))
   "Triggers the tracing of the CPS function (and its tail recursion
