@@ -4,45 +4,48 @@
 ;;;; Practicing for GCJ 2010, Aleksandr Vinokurov
 ;;;; Started reading the task at 23:52, 2010-03-18
 
-(defparameter *cps-counter* nil
-  "Counter of phrases found in a text by one call of the
-   COUNT-PHRASE-SUBSEQUENCIES.")
-
 (defun count-phrase-subsequencies (phrase text)
   "Returns a count of the phrase subsequencies found in the text.
    If phrase is nil it returns nil.
    Calls CPS as the recursion implementation."
-  (let ((*cps-counter* 0))
-    (when phrase ; we will go further only if it is something in phrase
-      (cps phrase text))))		; text will be checked in CPS
+  (when phrase	; we will go further only if it is something in phrase
+    (cps phrase (length phrase) text (length text)))) ; text will be checked in CPS
 
 (defparameter *trace-cps* nil
   "Flag for tracing CPS tail recursion (via CPS-MACRO)")
 
-(defmacro cps-macro (phrase text)
+(defparameter *cps-depth* 0
+  "Depth of CPS recursion (for tracing only)")
+
+(defmacro cps-macro (phrase phrase-len text text-len)
   "Macro used to trace the CPS function's tail recursion."
   `(progn
-     (when *trace-cps* (format t ";; (CPS-MACRO ~a ~a)~%" ,phrase ,text))
-     (cps ,phrase ,text)))
+     (when *trace-cps* (format t ";; [~d] (CPS-MACRO ~a ~a ~a ~a)~%"
+			       *cps-depth* ,phrase ,phrase-len ,text ,text-len))
+     (incf *cps-depth*)
+     (let ((result (cps ,phrase ,phrase-len ,text ,text-len)))
+       (decf *cps-depth*)
+       result)))
 
-(defun cps (phrase text)
+(defun cps (phrase phrase-len text text-len)
   "Returns a count of the phrase subsequencies found in the text.
    Should be called from COUNT-PHRASE-SUBSEQUENCIES."
-  (let ((fp (first phrase))
-	(ft (first text)))
-    (if ft			       ; continue only if we have text
-	;; p is not checked here because it is checked in COUNT-PHRASE-SUBSEQUENCIES
-	;; and later in CPS
-	(let ((rt (rest text)))
-	  (cond ((char/= fp ft) (cps-macro phrase rt))
-		((char=  fp ft)
-		 (let ((rp (rest phrase)))
-		   (if rp (cps-macro rp rt)
-		       (progn
-			 (incf *cps-counter*)
-			 (when *trace-cps* (format t "^^^^^^^~%")))))
-		 (cps-macro phrase rt))))
-	*cps-counter*)))
+  (if (> phrase-len text-len)
+      0
+      (let ((fp (first phrase))
+	    (ft (first text))
+	    (rt (rest text))
+	    (rt-len (1- text-len)))
+	(+ (cps-macro phrase phrase-len rt rt-len)
+	   (if (char= fp ft)
+	       (let ((rp (rest phrase))
+		     (rp-len (1- phrase-len)))
+		 (if rp
+		     (cps-macro rp rp-len rt rt-len)
+		     (progn
+		       (when *trace-cps* (format t "^^^^^^^~%"))
+		       1)))
+	       0)))))
 
 (defun trace-cps (&optional (trig t trigp))
   "Triggers the tracing of the CPS function (and its tail recursion
@@ -88,28 +91,13 @@
 
 (defun format-4-last-digits (num)
   (with-output-to-string (s)
-    (format s "~a~a~a~a"
-	    (mod (floor (/ num 1000)) 10)
-	    (mod (floor (/ num 100))  10)
-	    (mod (floor (/ num 10))   10)
-	    (mod num 10))
+    (format s "~4,'0d" (mod num 10000))
     s))
-
-(defmacro string-list (str)
-  "String to list macro."
-  `(list ,@(with-input-from-string
-	   (s str)
-	   (loop for char = (read-char s nil nil)
-	      while char
-	      collect char))))
 
 (defun cps-on-next-string (in-stream)
   (count-phrase-subsequencies
-   (string-list "welcome to code jam")
-   (loop for char = (read-char in-stream nil nil)
-      while char
-      until (char= char #\NewLine)
-      collect char)))
+   (concatenate 'list "welcome to code jam")
+   (concatenate 'list (read-line in-stream))))
 
 (defun test-streamed ()
   (format t ";; Testing RUN-ON-STREAM: ~a~%"
@@ -135,3 +123,8 @@ welcome to codejam
   (with-open-file (in in-file)
     (with-open-file (out out-file :direction :output :if-exists :supersede)
       (run-on-stream :in-stream in :out-stream out))))
+
+(defun test-run ()
+  (with-open-file (in #p"~/Development/GCJ/2009Qual/C-small-practice.in.txt")
+    (run-on-stream :in-stream in)))
+;;       #p"~/Development/GCJ/2009Qual/C-small-practice.out.txt"))
