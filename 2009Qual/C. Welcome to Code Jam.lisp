@@ -40,6 +40,7 @@
 (defun cps (phrase phrase-len text text-len)
   "Returns a count of the phrase subsequencies found in the text.
    Should be called from COUNT-PHRASE-SUBSEQUENCIES."
+  (declare (optimize debug 0 speed 3 space 0))
   (if (> phrase-len text-len)
       0
       (let ((fp (first phrase))
@@ -47,49 +48,14 @@
 	    (rt (rest text))
 	    (rt-len (1- text-len)))
 	(if (char/= fp ft)
-	    ;; Continue searching the PHRASE in the rest of the TEXT.
 	    (cps-macro phrase phrase-len rt rt-len)
-	    ;; Or operate with the sub-PHRASE and the rest of the TEXT.
-	    (let* ((rp (rest phrase))
-		   (rp-len (1- phrase-len))
-		   (spsc	     ; Sub-PHRASE subsequencies count.
-		    (if rp
-			(cps-macro rp rp-len rt rt-len)
-			(progn (when *trace-cps* (format t "^^^^^^^~%")) 1))))
-	      ;; Note that the code below would not work in case of MOD of the counter!
-	      (+ spsc (if (zerop spsc)	; If there are no sub-PHRASE-s
-			  0 ; then we can't find whole PHRASE there too.
-			  (if
-			   ;; Enhancement of the situation when the next char of the TEXT
-			   ;; is the same as FT while the second char of the PHRASE differs
-			   ;; from the FP. Then we can use the just calculated SPSC as this
-			   ;; is a duplication of the case. Or we should calculate a new case
-			   ;; fairfuly.
-			   (and (char= (first rt) ft) (char/= (first rp) fp))
-			   ;;(progn (format t ";; !! Enhancement !! ~a~%" spsc) spsc)
-			   spsc
-			   (cps-macro phrase phrase-len rt rt-len)))))))))
-
-(defun cps-cmp (fp rp rp-len text rt-len)
-  (if (char= fp (first text))
-      (if rp
-	  (cps-macro rp rp-len (rest text) rt-len)
-	  (progn
-	    (when *trace-cps* (format t "^^^^^^^~%"))
-	    1))
-      0))
-
-(defun cps! (phrase phrase-len text text-len)
-  "Alternative solution with MAPLIST."
-  (if (> phrase-len text-len)
-      0
-      (let ((fp (first phrase))
-	    (rp (rest phrase))
-	    (rp-len (1- phrase-len)))
-	(reduce #'+
-		(maplist #'(lambda (text)
-			     (cps-cmp fp rp rp-len text (decf text-len)))
-			 text)))))
+	    (+ (cps-macro phrase phrase-len rt rt-len)
+	       (let ((rp (rest phrase))
+		     (rp-len (1- phrase-len)))
+		 ;;	      (if (and (char= (first rt) ft) (char/= (first rp) fp))
+		 (if rp
+		     (cps-macro rp rp-len rt rt-len)
+		     (progn (when *trace-cps* (format t "^^^^^^^~%")) 1))))))))
 
 (defun trace-cps (&optional (trig t trigp))
   "Triggers the tracing of the CPS function (and its tail recursion
@@ -106,23 +72,30 @@
   *trace-cps*)
 
 (defun test ()
+  (fresh-line)
   (format t ";; Testing COUNT-PHRASE-SUBSEQUENCIES: ~a~%"
 	  (let ((phrases
 		 (list '(a b c)
 		       '(a a a)
-		       '(a a a)))
+		       '(a a a)
+		       '(a b c)))
 		(texts
 		 (list '(a b b c c)
 		       '(a a a a)
-		       '(a a a)))
+		       '(a a a)
+		       '(a a a b c c)))
 		(counts
 		 (list 4
 		       4
-		       1)))
+		       1
+		       6)))
 	    (every #'= counts
 		   (mapcar #'count-phrase-subsequencies phrases texts)))))
 
-(test)
+(time (test))
+
+;;(trace-cps)
+;;(count-phrase-subsequencies '(a b c) '(a a a b c c))
 
 (defun run-on-stream (&optional &key (in-stream *standard-input*)
 		      (out-stream *standard-output*))
@@ -138,18 +111,13 @@
     (format s "~4,'0d" (mod num 10000))
     s))
 
-(defun doubled-charp (text)
-  "Returns NIL if there are no such character X that the TEXT has XX anywhere."
-  (notevery #'not
-	    (maplist #'(lambda (a) (char= (first a) (first (rest a))))
-		     text)))
-
 (defun cps-on-next-string (in-stream)
   (count-phrase-subsequencies
    (concatenate 'list "welcome to code jam")
    (concatenate 'list (read-line in-stream))))
 
 (defun test-streamed ()
+(fresh-line)
   (format t ";; Testing RUN-ON-STREAM: ~a~%"
 	  (string= "Case #1: 0001
 Case #2: 0256
@@ -164,7 +132,7 @@ welcome to codejam
 		       (run-on-stream :in-stream in-stream
 				      :out-stream out-stream))))))
 
-(test-streamed)
+(time (test-streamed))
 
 ;; Interactive program function
 (defun run (in-file out-file)
@@ -178,10 +146,12 @@ welcome to codejam
 ;;; Some extra stuff
 
 (defun time-on-file (file)
+  (terpri)
   (format t ";; Measuring time on ~a~%" file)
   (time (run file "/var/tmp/GCJ-C-out.txt")))
 
-(time-on-file "C-small-practice.in.txt")
+;;(time-on-file #p"~/Development/GCJ/2009Qual/C-small-practice.in.txt")
+;;(time-on-file #p"~/Development/GCJ/2009Qual/C-x.in.txt")
 
 (defun test-run ()
   (with-open-file (in #p"~/Development/GCJ/2009Qual/C-x.in.txt")
