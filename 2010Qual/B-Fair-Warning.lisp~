@@ -1,0 +1,28 @@
+;;;; GCJ 2010 Qualification Round,
+;;;; B. Fair Warning
+;;;; Aleksandr Vinokurov
+;;;; 8 May 2010
+
+;;; See problem text for more
+
+(defun run-on-stream (&optional &key (in *standard-input*) (out *standard-output*))
+  "Computes the amount of time until the apocalypse comes for each case
+   from the IN stream and writes it to the OUT stream."
+  (loop repeat (read in) ; C lines => C cases
+       for case from 1
+       do (format out "~&Case #~d: ~a~%"
+		  case
+		  (time-to-apocalypse (loop repeat (read in) ; Line starts with N => N integers follow
+		     collect (read in))))))
+
+(defun time-to-apocalypse (times)
+  "Computes the amount of time until the apocalypse comes
+   for Great Events that occured in TIMES."
+  (format t "~&;; ~a" times)
+  (if (member 1 times)
+      0
+      (let ((gcd (apply #'gcd times)))
+	(format t " gcd: ~a" gcd)
+	(if (> gcd 1)
+	    (* gcd (time-to-apocalypse (mapcar #'(lambda (x) (/ x gcd)) times)))
+	    (+ -1  (time-to-apocalypse (mapcar #'(lambda (x) (1- x)) times)))))))

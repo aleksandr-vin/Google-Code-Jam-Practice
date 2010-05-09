@@ -1,0 +1,11 @@
+;;;; GCJ 2010 Qualification Round,
+;;;; A. Snapper Chain
+;;;; Aleksandr Vinokurov
+;;;; 8 May 2010
+
+;;; See problem text for more
+
+(defun light-bulb-p (n k)
+  "Answers if the light bulb is ON or OFF for N snappers chained
+   and K finger snaps."
+  (format nil "~[0~;1~]" t))

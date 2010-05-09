@@ -1,0 +1,24 @@
+;;;; GCJ 2010 Qualification Round,
+;;;; B. Theme Park
+;;;; Aleksandr Vinokurov
+;;;; 8 May 2010
+
+;;; See problem text for more
+
+;; Interactive program function
+(defun run (in-file out-file)
+  "Run it from the shell with
+   ``alisp -L <fasl> -e '(run #p\"~/in.txt\" #p\"~/out.txt\")' -kill''"
+  (with-open-file (in in-file)
+    (with-open-file (out out-file :direction :output :if-exists :supersede)
+      (run-on-stream :in in :out out))))
+
+(defun run-on-stream (&optional &key (in *standard-input*) (out *standard-output*))
+  "Computes the amount of Euros made by the roller coaster for each case
+   from the IN stream and writes it to the OUT stream."
+  (loop repeat (read in) ; C lines => C cases
+       for case from 1
+       do (format out "~&Case #~d: ~a~%"
+		  case
+		  (time-to-apocalypse (loop repeat (read in) ; Line starts with N => N integers follow
+		     collect (read in))))))
