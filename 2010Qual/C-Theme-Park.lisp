@@ -16,26 +16,36 @@
 (defun run-on-stream (&optional &key (in *standard-input*) (out *standard-output*))
   "Computes the amount of Euros made by the roller coaster for each case
    from the IN stream and writes it to the OUT stream."
-  (loop repeat (read in) ; T cases => T x 2 lines
-       for case from 1
-       do (format out "~&Case #~d: ~a~%"
-		  case
-		  (roller-coaster :R (read in)
-				  :k (read in)
-				  :gs (loop repeat (read in) ; First line ends with N => N integers follow on the second line
-					 collect (read in))))))
+  (loop repeat (read in)		; T cases => T x 2 lines
+     for case from 1
+     do (format out "~&Case #~d: ~a~%"
+		case
+		(roller-coaster :R (read in)
+				:k (read in)
+				:gs (loop repeat (read in) ; First line ends with N => N integers follow on the second line
+				       collect (read in))))))
 
 (defun roller-coaster (&key R k gs)
   (format t "~&;; R: ~d k: ~d gs: ~a~%" R k gs)
-  (let ((cache gs))
+  (let ((cache gs)
+	(top-R R))
     (labels ((rc (R k gs euros)
 	       (if (plusp R)
 		   (if (every #'= gs cache)
-		       (
-		   (let* ((load (load-rc gs k))
-			  (earn (car load))
-			  (gs (cdr load)))
-		     (rc (1- R) k gs (+ earn euros)))
+		       (let ((loopR (- top-R R)))
+			 (multiple-value-bind (dR mR) (floor top-R loopR)
+			   (format t "~&;; Looped on ~d, dR: ~d, mR: ~d~%;; ~d iterations optimized!!~%"
+				   loopR dR mR (* dR loopR))
+			   (if (zerop mR)
+			       (* dR euros)
+			       (let* ((load (load-rc gs k))
+				      (earn (car load))
+				      (gs (cdr load)))
+				 (rc (1- mR) k gs (+ earn (* dR euros)))))))
+		       (let* ((load (load-rc gs k))
+			      (earn (car load))
+			      (gs (cdr load)))
+			 (rc (1- R) k gs (+ earn euros))))
 		   euros)))
       (let* ((load (load-rc gs k))
 	     (earn (car load))
@@ -56,3 +66,20 @@
     (setf pass (cons g pass))
     (setf g (car gs))))
    ;;(format t "~&;; g: ~a gs: ~a pass: ~a load ~a~%" g gs pass load)))
+
+(defun test1 ()
+  (format t "~&;; test1: ~[OK~;False!~]~%"
+	  (if (every #'(lambda (x) (and x))
+		     (with-open-file
+			 (result "~/Development/GCJ/2010Qual/C-small-attempt0.out.txt")
+		       (with-input-from-string
+			   (str (with-output-to-string (out)
+				  (with-open-file
+				      (in "~/Development/GCJ/2010Qual/C-small-attempt0.in.txt")
+				    (run-on-stream :in in :out out))))
+			 (loop for r = (read-line result nil)
+			    for i = (read-line str nil)
+			    while (and r i)
+			    collect (string= r i))))) 0 1)))
+      
+    
